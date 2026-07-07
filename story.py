@@ -17,6 +17,8 @@ WRITING STYLE:
 
 Split the story into exactly {num_pages} pages, 2-3 short sentences per page.
 
+IMPORTANT: If any character speaks, use single quotes for their dialogue (like 'Goodnight, Coco'), never double quotes, since double quotes inside the JSON text will break the file format.
+
 Also create a FIXED visual description for each character (hair, clothes, colors, size) that will be reused on every page so the character looks the same throughout the book. Be specific and concrete.
 
 Also include a soft, one-line closing message or gentle moral from the story - simple enough for a 5-6 year old, warm and comforting, not preachy or instructional. It should feel like a soft whisper at the end of the story, not a lesson.

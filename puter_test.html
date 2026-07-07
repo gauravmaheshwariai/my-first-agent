@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Puter.js Test</title>
+<style>
+    body { font-family: Arial, sans-serif; padding: 30px; background: #fdf6e3; }
+    button { padding: 12px 20px; font-size: 16px; cursor: pointer; margin-bottom: 20px; }
+    img { max-width: 500px; display: block; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    #status { font-size: 14px; color: #555; margin-bottom: 10px; }
+</style>
+</head>
+<body>
+<h1>Puter.js Quick Test</h1>
+<p>This just checks that Puter.js can generate one image for free, before we build the full storybook pipeline.</p>
+<button onclick="testGenerate()">Generate Test Image</button>
+<div id="status"></div>
+<div id="result"></div>
+
+<script src="https://js.puter.com/v2/"></script>
+<script>
+async function testGenerate() {
+    const status = document.getElementById('status');
+    const result = document.getElementById('result');
+    result.innerHTML = '';
+    status.textContent = 'Generating... (you may be asked to sign in to a free Puter account the first time)';
+
+    try {
+        const img = await puter.ai.txt2img(
+            "A small wobbly golden star character and a kind crescent moon character, children's storybook illustration, watercolor style, warm colors",
+            { model: "black-forest-labs/flux-2-pro" }
+        );
+        result.appendChild(img);
+        status.textContent = 'Success! If this looks good, we will build the full pipeline.';
+    } catch (err) {
+        status.textContent = 'Error: ' + JSON.stringify(err);
+    }
+}
+</script>
+</body>
+</html>

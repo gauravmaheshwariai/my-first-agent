@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Storybook Image Generator</title>
+<style>
+    body {
+        font-family: Georgia, serif;
+        background-color: #fdf6e3;
+        padding: 30px;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    h1 { color: #5b3a29; }
+    h2 { color: #5b3a29; margin-top: 40px; border-bottom: 2px solid #eadfc4; padding-bottom: 8px; }
+    button {
+        padding: 12px 20px;
+        font-size: 16px;
+        cursor: pointer;
+        background: #d9a441;
+        border: none;
+        border-radius: 6px;
+        color: white;
+        margin: 10px 0;
+    }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    .status { font-size: 14px; color: #666; margin: 8px 0; }
+    .page-block {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin: 15px 0;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .page-block img { max-width: 100%; border-radius: 8px; display: block; margin: 10px 0; }
+    .download-link {
+        display: inline-block;
+        margin-top: 8px;
+        padding: 8px 14px;
+        background: #5b3a29;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        font-size: 14px;
+    }
+    .scene-text { font-size: 14px; color: #555; }
+</style>
+</head>
+<body>
+
+<h1>Storybook Image Generator</h1>
+<p>Run this from <code>localhost:8000</code>, in the same folder as <code>story.json</code>.</p>
+
+<h2>Step 1: Reference Image</h2>
+<button id="refBtn" onclick="generateReference()">Generate Character Reference</button>
+<div class="status" id="refStatus"></div>
+<div id="refResult"></div>
+
+<h2>Step 2: Page Illustrations</h2>
+<button id="pagesBtn" onclick="generateAllPages()" disabled>Generate All Pages</button>
+<div class="status" id="pagesStatus"></div>
+<div id="pagesResult"></div>
+
+<script src="https://js.puter.com/v2/"></script>
+<script>
+let story = null;
+let referenceImageUrl = null;
+
+async function loadStory() {
+    const res = await fetch('story.json');
+    story = await res.json();
+    document.getElementById('refStatus').textContent =
+        `Loaded "${story.title}" - ${story.characters.length} characters, ${story.pages.length} pages.`;
+}
+
+function buildReferencePrompt() {
+    const charBlock = story.characters
+        .map(c => `${c.name}: ${c.visual_description}`)
+        .join(". ");
+    return (
+        `A children's storybook cast portrait showing these characters together, ` +
+        `side by side, facing forward, simple plain background: ${charBlock} ` +
+        `Watercolor style, warm colors, consistent character design.`
+    );
+}
+
+async function generateReference() {
+    const btn = document.getElementById('refBtn');
+    const status = document.getElementById('refStatus');
+    const result = document.getElementById('refResult');
+    btn.disabled = true;
+    status.textContent = 'Generating reference image...';
+    result.innerHTML = '';
+
+    try {
+        const prompt = buildReferencePrompt();
+        const img = await puter.ai.txt2img(prompt, { model: "black-forest-labs/flux-2-pro" });
+        referenceImageUrl = img.src;
+
+        result.appendChild(img);
+        const link = document.createElement('a');
+        link.href = referenceImageUrl;
+        link.download = 'characters_reference.png';
+        link.className = 'download-link';
+        link.textContent = 'Download characters_reference.png';
+        result.appendChild(document.createElement('br'));
+        result.appendChild(link);
+
+        status.textContent = 'Reference image ready. You can now generate pages.';
+        document.getElementById('pagesBtn').disabled = false;
+    } catch (err) {
+        status.textContent = 'Error: ' + JSON.stringify(err);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function generatePage(pageNum, pageData) {
+    const prompt =
+        `Using the same characters shown in this reference image, redraw them in this new scene: ` +
+        `${pageData.scene_description} Keep the watercolor storybook style, warm colors, ` +
+        `and keep each character's appearance identical to the reference.`;
+
+    const img = await puter.ai.txt2img(prompt, {
+        model: "black-forest-labs/flux.1-kontext-pro",
+        image_url: referenceImageUrl
+    });
+    return img;
+}
+
+async function generateAllPages() {
+    const btn = document.getElementById('pagesBtn');
+    const status = document.getElementById('pagesStatus');
+    const result = document.getElementById('pagesResult');
+    btn.disabled = true;
+    result.innerHTML = '';
+
+    for (let i = 0; i < story.pages.length; i++) {
+        const pageNum = i + 1;
+        status.textContent = `Generating page ${pageNum} of ${story.pages.length}...`;
+
+        const block = document.createElement('div');
+        block.className = 'page-block';
+        block.innerHTML = `<strong>Page ${pageNum}</strong><p class="scene-text">${story.pages[i].scene_description}</p>`;
+
+        try {
+            const img = await generatePage(pageNum, story.pages[i]);
+            block.appendChild(img);
+
+            const link = document.createElement('a');
+            link.href = img.src;
+            link.download = `page_${pageNum}.png`;
+            link.className = 'download-link';
+            link.textContent = `Download page_${pageNum}.png`;
+            block.appendChild(document.createElement('br'));
+            block.appendChild(link);
+        } catch (err) {
+            block.innerHTML += `<p style="color:red">Failed: ${JSON.stringify(err)}</p>`;
+        }
+
+        result.appendChild(block);
+    }
+
+    status.textContent = 'All pages done! Download each image using the buttons above.';
+    btn.disabled = false;
+}
+
+loadStory();
+</script>
+</body>
+</html>
