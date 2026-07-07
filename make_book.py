@@ -308,6 +308,8 @@ def make_book(characters):
     storybook_path = os.path.join(folder_path, "storybook.html")
     print(f"\nAll done! Open {storybook_path} in your browser.")
 
+    return folder_path
+
 
 if __name__ == "__main__":
     characters = input("Enter 2-3 characters (e.g. 'a shy fox, a wise old owl'): ")

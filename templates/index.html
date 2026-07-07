@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Bedtime Storybook Generator</title>
+<style>
+    body {
+        font-family: Georgia, serif;
+        background-color: #fdf6e3;
+        margin: 0;
+        padding: 60px 20px;
+        display: flex;
+        justify-content: center;
+    }
+    .card {
+        max-width: 500px;
+        width: 100%;
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    h1 {
+        color: #5b3a29;
+        margin-top: 0;
+    }
+    p.subtitle {
+        color: #7a5c3e;
+        font-size: 16px;
+        margin-bottom: 30px;
+    }
+    input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+        font-family: Georgia, serif;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        box-sizing: border-box;
+        margin-bottom: 20px;
+    }
+    button {
+        background-color: #5b3a29;
+        color: white;
+        border: none;
+        padding: 14px 28px;
+        font-size: 16px;
+        font-family: Georgia, serif;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #7a5c3e;
+    }
+    .presets-section {
+        text-align: left;
+        margin-bottom: 24px;
+    }
+    .presets-label {
+        color: #7a5c3e;
+        font-size: 13px;
+        font-weight: bold;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin: 0 0 8px 0;
+    }
+    .preset-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+    .preset-button {
+        background-color: #fdf6e3;
+        color: #5b3a29;
+        border: 1px solid #e0d2b8;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-family: Georgia, serif;
+        border-radius: 20px;
+        cursor: pointer;
+    }
+    .preset-button:hover {
+        background-color: #f5e9cc;
+    }
+    .or-divider {
+        color: #999;
+        font-size: 13px;
+        text-align: center;
+        margin: 4px 0 16px 0;
+    }
+    .hint {
+        color: #999;
+        font-size: 13px;
+        margin-top: 20px;
+    }
+    #loading {
+        display: none;
+        color: #7a5c3e;
+        margin-top: 20px;
+    }
+</style>
+</head>
+<body>
+<div class="card">
+    <h1>Bedtime Storybook Generator</h1>
+    <p class="subtitle">Enter 2-3 characters and we'll write, illustrate, and bind a story for you.</p>
+
+    <form action="/generate" method="POST" onsubmit="showLoading()">
+
+        <div class="presets-section">
+            <p class="presets-label">Human + animal</p>
+            <div class="preset-row">
+                {% for preset in human_animal_presets %}
+                <button type="button" class="preset-button"
+                    onclick="fillCharacters('{{ preset.text }}')">
+                    {{ preset.label }}
+                </button>
+                {% endfor %}
+            </div>
+
+            <p class="presets-label">Two animals</p>
+            <div class="preset-row">
+                {% for preset in two_animal_presets %}
+                <button type="button" class="preset-button"
+                    onclick="fillCharacters('{{ preset.text }}')">
+                    {{ preset.label }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <p class="or-divider">— or write your own below —</p>
+
+        <input
+            type="text"
+            id="characters"
+            name="characters"
+            placeholder="e.g. a cute baby boy named Duggu, a cute puppy dog named Coco"
+            required
+        >
+        <br>
+        <button type="submit">Generate storybook</button>
+    </form>
+
+    <p id="loading">Writing the story and painting the pictures... this can take a minute.</p>
+    <p class="hint">Every story is saved in its own dated folder, so you can make as many as you like.</p>
+</div>
+
+<script>
+    function fillCharacters(text) {
+        const input = document.getElementById("characters");
+        input.value = text;
+        input.focus();
+    }
+
+    function showLoading() {
+        // Since generation happens synchronously on the server, the page
+        // will just sit on the loading screen until Flask redirects it —
+        // this just gives a visual cue instead of a frozen-looking page.
+        document.getElementById("loading").style.display = "block";
+    }
+</script>
+</body>
+</html>
