@@ -1,1 +1,17 @@
+.env# Secrets — never commit API keys
 .env
+
+# Python cache — auto-regenerated every run, not source code
+__pycache__/
+*.pyc
+
+# Generated story output — created fresh each run, not source code
+stories/
+story.json
+page_*.png
+storybook_*.html
+
+# PyInstaller build artifacts — regenerate with the PyInstaller command, don't commit
+build/
+dist/
+*.spec
