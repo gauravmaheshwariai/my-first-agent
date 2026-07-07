@@ -7,15 +7,53 @@ Routes (a "route" is just: which URL triggers which function):
                          then sends the browser to the finished storybook
   GET  /stories/...  -> serves the generated images/HTML files so the
                          browser can actually display them
+
+This file also works when packaged into a Windows .exe with PyInstaller
+(see the comment block below for why the path handling looks the way it does).
 """
 
+import sys
 import os
+
+# ---------------------------------------------------------------------------
+# Path setup — this block MUST run before we import make_book, because
+# make_book.py calls load_dotenv() as soon as it's imported, and that
+# needs to find .env in the right folder.
+#
+# The problem this solves: when PyInstaller packages this into a single
+# .exe with --onefile, double-clicking that exe extracts everything into
+# a TEMPORARY folder at runtime (accessible via sys._MEIPASS) and deletes
+# it when the app closes. If we saved stories there, they'd vanish. So:
+#   - BASE_DIR = the folder where the real, permanent .exe lives
+#     (used for .env, and for saving story.json/images/stories/)
+#   - TEMPLATE_DIR = where the bundled templates/index.html actually is
+#     (the temporary extracted folder, since that's a bundled resource,
+#      not something we write to)
+#
+# `sys.frozen` is a flag PyInstaller sets automatically inside the exe —
+# it's False when you run `py app.py` normally, so this code works
+# identically in both cases.
+# ---------------------------------------------------------------------------
+if getattr(sys, "frozen", False):
+    BASE_DIR = os.path.dirname(sys.executable)
+    TEMPLATE_DIR = os.path.join(sys._MEIPASS, "templates")
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
+
+# Make BASE_DIR the working directory BEFORE importing make_book, so its
+# load_dotenv() call (which looks in the current directory by default)
+# finds the .env file sitting next to the real .exe.
+os.chdir(BASE_DIR)
+
 import random
+import threading
+import webbrowser
 from flask import Flask, render_template, request, redirect, send_from_directory
 
 from make_book import make_book, BASE_STORIES_DIR
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder=TEMPLATE_DIR)
 
 
 # ---------------------------------------------------------------------------
@@ -139,8 +177,18 @@ def serve_story_file(subpath):
     return send_from_directory(BASE_STORIES_DIR, subpath)
 
 
+def open_browser():
+    # Called once, 1.5 seconds after the server starts. The delay matters:
+    # if we open the browser tab immediately, Flask may not be listening
+    # yet and the tab would show "can't connect."
+    webbrowser.open_new("http://127.0.0.1:5000")
+
+
 if __name__ == "__main__":
-    # debug=True auto-restarts the server when you edit code, and shows
-    # detailed error pages in the browser if something breaks — helpful
-    # while learning, but you'd turn this off before sharing publicly.
-    app.run(debug=True)
+    threading.Timer(1.5, open_browser).start()
+
+    # debug=False for the packaged exe: debug mode's auto-reloader can
+    # cause Flask to start twice, which would open two browser tabs.
+    # (While actively developing with `py app.py`, you can temporarily
+    # switch this back to True to get auto-restart-on-save.)
+    app.run(debug=False)
