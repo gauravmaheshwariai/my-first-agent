@@ -157,11 +157,17 @@ def generate():
         # No input — just send them back to the form instead of crashing.
         return redirect("/")
 
+    # Which illustration backend the user picked in the form.
+    # Defaults to "pollinations" if the radio buttons aren't in index.html
+    # yet, so nothing breaks before you've added the toggle there.
+    image_backend = request.form.get("image_backend", "pollinations")
+
     # This is the exact same function your command-line version calls.
     # It blocks (the page will just sit there loading) until the story,
     # images, and HTML are all done — for a personal project that's fine,
-    # but it does mean generation can take 30-60+ seconds per book.
-    folder_path = make_book(characters)
+    # but it does mean generation can take 30-60+ seconds per book
+    # (longer for Gemini than Pollinations).
+    folder_path = make_book(characters, image_backend=image_backend)
 
     # folder_path looks like "stories/2026-07-07_01_Duggu-Coco"
     # We only need the folder NAME to build the browser URL below.

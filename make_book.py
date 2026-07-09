@@ -3,7 +3,7 @@ make_book.py — combined pipeline
 
 Runs all three steps in order:
   1. generate_story()   -> asks Claude for the story as JSON
-  2. generate_images()  -> asks Pollinations.ai for one image per page
+  2. generate_images()  -> asks Pollinations.ai OR Gemini for one image per page
   3. build_html()        -> assembles everything into storybook.html
 
 This file doesn't introduce new logic — it's story.py + illustrate.py +
@@ -125,7 +125,7 @@ Respond ONLY with valid JSON in this exact format, no other text:
 
 
 # ---------------------------------------------------------------------------
-# STEP 2: Illustration  (from illustrate.py)
+# STEP 2: Illustration  (from illustrate.py) — Pollinations backend
 # ---------------------------------------------------------------------------
 def build_full_prompt(story, page):
     character_block = ". ".join(
@@ -173,7 +173,7 @@ def generate_images(story, max_retries=3):
 
 
 # ---------------------------------------------------------------------------
-# STEP 3: HTML assembly  (from build_book.py)
+# STEP 3: HTML assembly  (from build_book.py) — Pollinations backend
 # ---------------------------------------------------------------------------
 def image_to_base64(filename):
     with open(filename, "rb") as f:
@@ -251,9 +251,9 @@ def build_html(story):
 
 
 # ---------------------------------------------------------------------------
-# ORCHESTRATION — this is the only genuinely new code in this file
+# ORCHESTRATION
 # ---------------------------------------------------------------------------
-def make_book(characters):
+def make_book(characters, image_backend="pollinations"):
     print(f"\n=== Step 1/3: Writing the story ===")
     story = generate_story(characters)
 
@@ -277,6 +277,7 @@ def make_book(characters):
     folder_path = os.path.join(BASE_STORIES_DIR, folder_name)
     os.makedirs(folder_path, exist_ok=True)
     print(f"Saving this story to: {folder_path}\n")
+    print(f"Image backend: {image_backend}\n")
 
     # Everything below (story.json, page_N.png, storybook.html) uses plain
     # relative filenames, same as the original scripts did. Rather than
@@ -296,10 +297,21 @@ def make_book(characters):
         print("Saved to story.json")
 
         print(f"\n=== Step 2/3: Illustrating ===")
-        generate_images(story)
+        if image_backend == "gemini":
+            # Imported here (not at the top of the file) so that Pollinations-only
+            # runs never need the google-genai package installed at all.
+            from gemini_illustrate import generate_images as gemini_generate_images
+            gemini_generate_images(story)
+        else:
+            generate_images(story)
 
         print(f"\n=== Step 3/3: Building the storybook ===")
-        html = build_html(story)
+        if image_backend == "gemini":
+            from gemini_build_book import build_html as gemini_build_html
+            html = gemini_build_html(story)
+        else:
+            html = build_html(story)
+
         with open("storybook.html", "w", encoding="utf-8") as f:
             f.write(html)
     finally:

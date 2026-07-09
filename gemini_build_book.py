@@ -1,5 +1,6 @@
 import json
 import base64
+import os
 
 def image_to_base64(filename):
     with open(filename, "rb") as f:
@@ -7,7 +8,7 @@ def image_to_base64(filename):
     encoded = base64.b64encode(data).decode("utf-8")
     return f"data:image/png;base64,{encoded}"
 
-def build_html(story):
+def build_html(story, folder="."):
     html_parts = [f"""<!DOCTYPE html>
 <html>
 <head>
@@ -57,7 +58,8 @@ def build_html(story):
 """]
 
     for i, page in enumerate(story['pages'], 1):
-        image_data_uri = image_to_base64(f"gemini_page_{i}.png")
+        image_path = os.path.join(folder, f"gemini_page_{i}.png")
+        image_data_uri = image_to_base64(image_path)
         html_parts.append(f"""
 <div class="page">
     <img src="{image_data_uri}" alt="Page {i} illustration">
