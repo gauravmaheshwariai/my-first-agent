@@ -48,12 +48,43 @@ os.chdir(BASE_DIR)
 
 import random
 import threading
+import uuid
 import webbrowser
-from flask import Flask, render_template, request, redirect, send_from_directory
+from flask import Flask, render_template, request, redirect, send_from_directory, jsonify
 
 from make_book import make_book, BASE_STORIES_DIR
 
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
+
+# ---------------------------------------------------------------------------
+# Background job tracking for /generate.
+#
+# make_book() takes 30-60+ seconds. Holding a single HTTP request open for
+# that whole time is fragile on mobile: iOS suspends idle network activity
+# when Safari is backgrounded/the phone locks, and cellular NAT/proxies
+# drop connections that carry no bytes for a while. The server can finish
+# and log success while the client has already dropped the connection and
+# shows "network connection was lost."
+#
+# So /generate just starts the work in a background thread and redirects
+# to a status page immediately. The status page polls a small JSON
+# endpoint every couple seconds — each poll is quick, so a single dropped
+# request just gets retried by the next poll instead of losing the result.
+# ---------------------------------------------------------------------------
+JOBS = {}
+JOBS_LOCK = threading.Lock()
+
+
+def run_generate_job(job_id, characters, image_backend):
+    try:
+        folder_path = make_book(characters, image_backend=image_backend)
+        folder_name = os.path.basename(folder_path)
+        result = {"status": "done", "url": f"/stories/{folder_name}/storybook.html"}
+    except Exception as e:
+        result = {"status": "error", "error": str(e)}
+
+    with JOBS_LOCK:
+        JOBS[job_id] = result
 
 
 # ---------------------------------------------------------------------------
@@ -162,18 +193,36 @@ def generate():
     # yet, so nothing breaks before you've added the toggle there.
     image_backend = request.form.get("image_backend", "pollinations")
 
-    # This is the exact same function your command-line version calls.
-    # It blocks (the page will just sit there loading) until the story,
-    # images, and HTML are all done — for a personal project that's fine,
-    # but it does mean generation can take 30-60+ seconds per book
-    # (longer for Gemini than Pollinations).
-    folder_path = make_book(characters, image_backend=image_backend)
+    # Kick off the actual work (30-60+ seconds) in the background and
+    # return right away — see the JOBS comment above for why.
+    job_id = uuid.uuid4().hex
+    with JOBS_LOCK:
+        JOBS[job_id] = {"status": "running"}
+    threading.Thread(
+        target=run_generate_job, args=(job_id, characters, image_backend), daemon=True
+    ).start()
 
-    # folder_path looks like "stories/2026-07-07_01_Duggu-Coco"
-    # We only need the folder NAME to build the browser URL below.
-    folder_name = os.path.basename(folder_path)
+    return redirect(f"/status/{job_id}")
 
-    return redirect(f"/stories/{folder_name}/storybook.html")
+
+@app.route("/status/<job_id>")
+def show_status(job_id):
+    with JOBS_LOCK:
+        job = JOBS.get(job_id)
+
+    if job is None:
+        # Unknown job (bad link, or server restarted since it was created).
+        return redirect("/")
+
+    return render_template("status.html", job_id=job_id)
+
+
+@app.route("/status/<job_id>/check")
+def check_status(job_id):
+    with JOBS_LOCK:
+        job = JOBS.get(job_id, {"status": "error", "error": "Unknown job."})
+
+    return jsonify(job)
 
 
 @app.route("/stories/<path:subpath>")

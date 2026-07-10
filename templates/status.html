@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#5b3a29">
+<meta charset="UTF-8">
+<title>Bedtime Storybook Generator</title>
+<style>
+    body {
+        font-family: Georgia, serif;
+        background-color: #fdf6e3;
+        margin: 0;
+        padding: 60px 20px;
+        display: flex;
+        justify-content: center;
+    }
+    .card {
+        max-width: 500px;
+        width: 100%;
+        background: white;
+        padding: 40px;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        text-align: center;
+    }
+    h1 {
+        color: #5b3a29;
+        margin-top: 0;
+    }
+    p.subtitle {
+        color: #7a5c3e;
+        font-size: 16px;
+    }
+    .spinner {
+        margin: 24px auto;
+        width: 36px;
+        height: 36px;
+        border: 4px solid #e0d2b8;
+        border-top-color: #5b3a29;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+    .error {
+        color: #a33;
+        margin-top: 20px;
+    }
+    a.home-link {
+        color: #7a5c3e;
+    }
+</style>
+</head>
+<body>
+<div class="card">
+    <h1>Bedtime Storybook Generator</h1>
+    <div id="waiting">
+        <div class="spinner"></div>
+        <p class="subtitle">Writing the story and painting the pictures... this can take a minute.</p>
+        <p class="subtitle" style="font-size: 13px; color: #999;">
+            Feel free to keep this tab open in the foreground — it checks in every couple
+            seconds and will jump to your storybook the moment it's ready.
+        </p>
+    </div>
+    <div id="failed" style="display: none;">
+        <p class="error" id="error-message"></p>
+        <p><a class="home-link" href="/">&larr; Back to start</a></p>
+    </div>
+</div>
+
+<script>
+    const jobId = {{ job_id | tojson }};
+
+    async function checkStatus() {
+        try {
+            const response = await fetch(`/status/${jobId}/check`);
+            const job = await response.json();
+
+            if (job.status === "done") {
+                window.location.href = job.url;
+                return;
+            }
+
+            if (job.status === "error") {
+                document.getElementById("waiting").style.display = "none";
+                document.getElementById("failed").style.display = "block";
+                document.getElementById("error-message").textContent =
+                    "Something went wrong: " + job.error;
+                return;
+            }
+        } catch (err) {
+            // A single poll failing (e.g. the phone was briefly offline) is
+            // fine — just try again on the next tick instead of giving up.
+        }
+
+        setTimeout(checkStatus, 2000);
+    }
+
+    checkStatus();
+</script>
+</body>
+</html>
